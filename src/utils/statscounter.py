@@ -184,3 +184,5 @@ class StatsCounter(object):
             json.dump(self.load_and_proc_times, outfile, indent=4)
             outfile.flush()
             logging.info(f"{utcnow()} Rank {self.my_rank} wrote json output")
+            outfile.flush()
+            logging.info(f"{utcnow()} Rank {self.my_rank} wrote json output")

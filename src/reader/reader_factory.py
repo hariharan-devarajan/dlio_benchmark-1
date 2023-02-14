@@ -48,5 +48,5 @@ class ReaderFactory(object):
             from src.reader.tf_reader import TFReader
             return TFReader(dataset_type)
         else:
-            print("Loading data of %s format is not supported without framework data loader" %type)
+            print("Loading data of %s format is not supported without framework data loader" % type)
             raise Exception(type)
