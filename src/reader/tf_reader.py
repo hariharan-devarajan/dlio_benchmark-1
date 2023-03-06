@@ -18,8 +18,6 @@ import math
 import logging
 from time import time
 
-import numpy as np
-
 from src.utils.utility import utcnow, timeit, perftrace
 from src.common.enumerations import Shuffle, DatasetType
 from src.reader.reader_handler import FormatReader
@@ -38,8 +36,6 @@ class TFReader(FormatReader):
         # We read the full _file_list here instead of _local_file_list
         # because we will shard the data using the tf.data function
 
-        # TODO: DLIO assumes the tfrecord files to contain image/label pairs.
-
     @perftrace.event_logging
     def _decode_image(self, parsed_example):
         # Get the image as raw bytes.
@@ -51,6 +47,7 @@ class TFReader(FormatReader):
         resized_image = tf.reshape(image_tensor, [dimension, dimension])
         return tf.pad(resized_image, ((0, self.max_dimension - dimension), (0, self.max_dimension - dimension)))
 
+    # TODO: DLIO assumes the tfrecord files to contain image/label pairs.
     # This is not always the case, e.g. in BERT, each record is more complex,
     # consisting of 6 lists and a label. Same for DLRM.
     @perftrace.event_logging
@@ -78,15 +75,14 @@ class TFReader(FormatReader):
         """
         # superclass function initializes the file list
         super().read(epoch_number)
-        logging.info(f"file list {len(self._file_list)}")
-        dataset = tf.data.TFRecordDataset(filenames=self._file_list,
-                                          buffer_size=self.transfer_size)
-        dataset = dataset.map(self._tf_parse_function, num_parallel_calls=self.computation_threads)
-        dataset = dataset.map(self._decode_image, num_parallel_calls=self.computation_threads)
-        self._dataset = dataset.batch(self.batch_size)
+        self._dataset = tf.data.TFRecordDataset(filenames=self._file_list,
+                                                    buffer_size=self.transfer_size)
+        self._dataset = self._dataset.shard(num_shards=self.comm_size, index=self.my_rank)
+        self._dataset = self._dataset.map(self._tf_parse_function, num_parallel_calls=self.computation_threads)
+        self._dataset = self._dataset.map(self._decode_image, num_parallel_calls=self.computation_threads)
+        self._dataset = self._dataset.batch(self.batch_size, drop_remainder=True)
         self.after_read()
 
-    @perftrace.event_logging
     def next(self):
         """
         Provides the iterator over tfrecord data pipeline.
@@ -101,25 +97,21 @@ class TFReader(FormatReader):
 
         # The previous version crashed when all workers could not generate the same amount of batches
         # Using the inbuilt tensorflow dataset iteration seems to work fine, was there an advantage of doing it the old way?
-        count = 0
         total = math.ceil(self.get_sample_len() / self.batch_size / self.comm_size)
+        count = 0
         t0 = time()
         for batch in self._dataset:
             t1 = time()
             perftrace.event_complete(f"TFRecord_{self.dataset_type}_step_{count}",
                                      "tfrecord_reader..next", t0, t1 - t0)
             count += 1
-            yield 0, batch
+            is_last = 0 if count < total else 1
+            count += 1
+            yield is_last, batch
             t0 = time()
 
-    @perftrace.event_logging
     def read_index(self, index):
         pass
 
-    @perftrace.event_logging
     def get_sample_len(self):
-        if self.dataset_type is DatasetType.TRAIN:
-            return self.num_samples * self.num_files_train
-        elif self.dataset_type is DatasetType.VALID:
-            return self.num_samples * self.num_files_eval
-        return 1
+        return self.num_samples * len(self._file_list)

@@ -87,12 +87,11 @@ class HDF5Reader(FormatReader):
                 logging.info(f"{utcnow()} num_set {sample_index} current batch_size {len(batch)}")
                 t0 = time()
                 my_image = self._dataset[index]["data"][sample_index]
-                logging.debug(f"{utcnow()} shape of image {my_image.shape} self.max_dimension {self.max_dimension}")
                 my_image_resized = np.resize(my_image, (self.max_dimension, self.max_dimension))
-                logging.debug(f"{utcnow()} new shape of image {my_image_resized.shape}")
                 t1 = time()
                 perftrace.event_complete(f"HDF5_{self.dataset_type}_image_{sample_index}_step_{count}",
                                          "csv_reader..next", t0, t1 - t0)
+                logging.debug(f"{utcnow()} new shape of image {my_image_resized.shape}")
                 batch.append(my_image_resized)
                 is_last = 0 if count < total else 1
                 if is_last:
@@ -105,23 +104,23 @@ class HDF5Reader(FormatReader):
                     yield is_last, batch
                     batch = []
                 t0 = time()
-                self._dataset[index]["fp"].close()
+            self._dataset[index]["fp"].close()
 
     @perftrace.event_logging
     def read_index(self, index):
-        file_index = math.floor(index / self.num_samples) % len(self._dataset)
+        file_index = math.floor(index / self.num_samples)
         element_index = index % self.num_samples
-        file_h5 = h5py.File(self._dataset[file_index]["file"], 'r')
-        my_image = file_h5['records'][element_index]
+        if self.read_type is ReadType.ON_DEMAND or self._dataset[file_index]["data"] is None:
+            file_h5 = h5py.File(self._dataset[file_index]["file"], 'r')
+            self._dataset[file_index]["fp"] = file_h5
+            self._dataset[file_index]["data"] = file_h5['records']
+        my_image = self._dataset[file_index]["data"][:][:][element_index:element_index + 1]
         my_image_resized = np.resize(my_image, (self.max_dimension, self.max_dimension))
         logging.debug(f"{utcnow()} new shape of image {my_image_resized.shape}")
-        file_h5.close()
+        if self.read_type is ReadType.ON_DEMAND:
+            self._dataset[file_index]["fp"].close()
         return my_image
 
     @perftrace.event_logging
     def get_sample_len(self):
-        if self.dataset_type is DatasetType.TRAIN:
-            return self.num_samples * self.num_files_train
-        elif self.dataset_type is DatasetType.VALID:
-            return self.num_samples * self.num_files_eval
-        return 1
+        return self.num_samples * len(self._local_file_list)

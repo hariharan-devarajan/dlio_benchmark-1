@@ -19,6 +19,7 @@ from src.common.enumerations import FormatType
 from src.common.error_code import ErrorCodes
 
 
+
 class GeneratorFactory(object):
     def __init__(self):
         pass

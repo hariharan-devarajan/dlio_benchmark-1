@@ -244,8 +244,6 @@ class DLIOBenchmark(object):
             end_time = time()
             perftrace.event_complete(f"train_epoch_{epoch}_step_{block_step}", "DLIO_BENCHMARK", start_time,
                                      end_time - start_time)
-
-
             self.framework.barrier()
             self.stats.batch_loaded(epoch, overall_step, block, t0)
 
@@ -374,7 +372,6 @@ class DLIOBenchmark(object):
         self.framework.barrier()
         if self.my_rank == 0:
             logging.info(f"{utcnow()} Saved outputs in {self.output_folder}")
-
 
 
 @measure_performance

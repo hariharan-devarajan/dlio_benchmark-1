@@ -19,8 +19,7 @@ import os
 import logging
 
 from src.data_loader.data_loader_factory import DataLoaderFactory
-from src.data_loader.data_loader_factory import DataLoaderFactory
-from src.utils.utility import utcnow, perftrace
+from src.utils.utility import utcnow
 from src.common.error_code import ErrorCodes
 from src.framework.framework import Framework
 from src.reader.reader_factory import ReaderFactory

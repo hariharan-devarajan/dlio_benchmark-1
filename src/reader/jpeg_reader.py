@@ -15,7 +15,6 @@
    limitations under the License.
 """
 from time import time
-
 import math
 import logging
 import numpy as np
@@ -24,11 +23,8 @@ from PIL import Image
 
 from numpy import random
 from src.reader.reader_handler import FormatReader
-from src.common.enumerations import Shuffle, FileAccess
-
-
+from src.common.enumerations import Shuffle, FileAccess, DatasetType
 from src.utils.utility import progress, utcnow, timeit, perftrace
-
 
 class JPEGReader(FormatReader):
     """
@@ -54,8 +50,6 @@ class JPEGReader(FormatReader):
         :return: piece of data for training.
         """
         super().next()
-        total = int(math.ceil(self.get_sample_len() / self.batch_size))
-        count = 0
         batches_images = [self._dataset[n:n + self.batch_size] for n in range(0, len(self._dataset), self.batch_size)]
         total = len(batches_images)
         count = 0
@@ -68,18 +62,17 @@ class JPEGReader(FormatReader):
                 t1 = time()
                 perftrace.event_complete(f"JPEG_{self.dataset_type}_image_{image_index}_step_{count}",
                                          "csv_reader..next", t0, t1 - t0)
-                t0 = time()
                 image_index += 1
+                t0 = time()
             images = np.array(images)
             is_last = 0 if count < total else 1
             count += 1
             logging.info(f"{utcnow()} completed {count} of {total} is_last {is_last} {len(self._dataset)}")
             yield is_last, images
 
-    @perftrace.event_logging
     def read_index(self, index):
         return np.asarray(Image.open(self._dataset[index % len(self._dataset)]).resize((self.max_dimension, self.max_dimension)))
 
     @perftrace.event_logging
     def get_sample_len(self):
-        return len(self._dataset)
+        return self.num_samples * len(self._local_file_list)
