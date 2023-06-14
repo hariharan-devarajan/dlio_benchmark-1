@@ -26,6 +26,9 @@ from typing import Dict
 
 import numpy as np
 import inspect
+import psutil
+import socket
+p = psutil.Process()
 
 # UTC timestamp format with microsecond precision
 from dlio_benchmark.common.enumerations import LoggerType
@@ -137,6 +140,8 @@ def create_dur_event(name, cat, ts, dur, args={}):
         tid = threading.get_ident()
     else:
         tid = 0
+    args["hostname"] = socket.gethostname()
+    args["cpu_affinity"] = p.cpu_affinity()
     d = {
         "name": name,
         "cat": cat,
