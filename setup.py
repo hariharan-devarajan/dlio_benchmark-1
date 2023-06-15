@@ -10,7 +10,8 @@ core_deps = [
  'mpi4py',
  'numpy',
  'h5py',
- 'pandas'
+ 'pandas',
+ 'psutil',
 ]
 x86_deps = [
  'hydra-core == 1.2.0',
