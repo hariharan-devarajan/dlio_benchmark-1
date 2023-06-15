@@ -278,7 +278,7 @@ def LoadConfig(args, config):
             args.num_samples_per_file = config['dataset']['num_samples_per_file']
         if 'data_folder' in config['dataset']:
             args.data_folder = config['dataset']['data_folder']
-            args.data_folder = args.data_folder.rstrip('/')
+            args.data_folder = os.path.abspath(args.data_folder.rstrip('/'))
         if 'num_subfolders_train' in config['dataset']:
             args.num_subfolders_train = config['dataset']['num_subfolders_train']
         if 'num_subfolders_eval' in config['dataset']:
